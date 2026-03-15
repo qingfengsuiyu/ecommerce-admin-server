@@ -4,7 +4,7 @@ const Order = require("../modules/Order");
 const { auth, authorize } = require("../middlewares/auth");
 
 // 创建订单
-router.post("/", auth, async (req, res,next) => {
+router.post("/", auth, async (req, res, next) => {
   try {
     const { products } = req.body;
 
@@ -31,21 +31,40 @@ router.post("/", auth, async (req, res,next) => {
 });
 
 // 获取所有订单(管理员看所有,普通用户只看自己)
-router.get("/", auth, async (req, res,next) => {
+router.get("/", auth, async (req, res, next) => {
   try {
+    const { page = 1, limit = 10, keyword = "" } = req.query;
     const query = req.user.role === "admin" ? {} : { user: req.user._id };
+    if (keyword) {
+      query.orderNo = { $regex: keyword, $options: "i" };
+    }
+    const skip = (page - 1) * limit;
+
     const orders = await Order.find(query)
       .populate("user", "username email")
       .populate("products.product", "name price image")
+      .skip(skip)
+      .limit(Number(limit))
       .sort({ createdAt: -1 });
-    res.json({ success: true, data: orders });
+
+    const total = await Order.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: orders,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+      },
+    });
   } catch (e) {
     next(e);
   }
 });
 
 // 更新订单状态
-router.put("/:id/status", auth, authorize("admin"), async (req, res,next) => {
+router.put("/:id/status", auth, authorize("admin"), async (req, res, next) => {
   try {
     const { status } = req.body;
     const order = await Order.findByIdAndUpdate(
@@ -58,7 +77,7 @@ router.put("/:id/status", auth, authorize("admin"), async (req, res,next) => {
     }
     res.json({ success: true, data: order });
   } catch (e) {
-   next(e);
+    next(e);
   }
 });
 
