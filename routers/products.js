@@ -2,18 +2,25 @@ const express = require("express");
 const router = express.Router();
 const Product = require("../modules/Product");
 const { auth, authorize } = require("../middlewares/auth");
-const multer = require("multer");
-const path = require("path");
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "public/uploads");
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueName + path.extname(file.originalname));
+const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "ecommerce-admin",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
   },
 });
+
 const upload = multer({ storage });
 
 // 查:获取所有商品
@@ -58,11 +65,11 @@ router.post("/upload", auth, upload.single("image"), (req, res, next) => {
       .status(400)
       .json({ success: false, message: "请选择要上传的图片" });
   }
-  const imageUrl = "/uploads/" + req.file.filename;
+
   res.json({
     success: true,
     message: "上传成功",
-    data: { imageUrl },
+    data: { imageUrl: req.file.path },
   });
 });
 
