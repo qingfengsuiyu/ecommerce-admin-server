@@ -19,7 +19,15 @@ router.get("/", auth, authorize("admin"), async (req, res, next) => {
 // 修改用户角色(仅管理员)
 router.put("/:id/role", auth, authorize("admin"), async (req, res, next) => {
   try {
+    if (req.user._id.toString() === req.params.id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "不能修改自己的权限" });
+    }
+
     const { role } = req.body;
+    // 如果当前id相同,不允许自己修改自己的权限
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role },
