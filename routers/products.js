@@ -29,18 +29,23 @@ const upload = multer({ storage });
 // 查:获取所有商品
 router.get("/", async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, keyword = "" } = req.query;
+    const { page = 1, limit = 10, keyword = "", category = "" } = req.query;
 
     // 构建查询条件
     const query = {};
+
     if (keyword) {
       query.name = { $regex: keyword, $options: "i" };
+    }
+    if (category) {
+      query.category = category;
     }
 
     // 计算跳过多少条
     const skip = (page - 1) * limit;
 
     const products = await Product.find(query)
+      .populate("category", "name")
       .skip(skip)
       .limit(Number(limit))
       .sort({ createdAt: -1 });
@@ -79,7 +84,10 @@ router.post("/upload", auth, upload.single("image"), (req, res, next) => {
 // 查:获取单个商品
 router.get("/:id", async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate(
+      "category",
+      "name",
+    );
     if (!product) {
       return res.status(404).json({ success: false, message: "商品不存在" });
     }
