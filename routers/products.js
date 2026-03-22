@@ -12,7 +12,10 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-
+// console.log(
+//   "Cloudinary配置:",
+//   process.env.CLOUDINARY_CLOUD_NAME ? "已加载" : "未加载",
+// );
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
