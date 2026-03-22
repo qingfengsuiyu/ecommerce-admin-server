@@ -8,6 +8,7 @@ const dashboardRoutes = require("./routers/dashboard");
 const userRoutes = require("./routers/users");
 const errorHandler = require("./middlewares/errorHandler");
 const cors = require("cors");
+const categoryRoutes = require("./routers/categories");
 
 const app = express();
 app.use(express.json());
@@ -33,5 +34,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/categories", categoryRoutes);
+
 // 放在所有 app.use 路由的最后面
 app.use(errorHandler);
