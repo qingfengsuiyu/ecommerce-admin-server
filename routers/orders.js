@@ -81,4 +81,83 @@ router.put("/:id/status", auth, authorize("admin"), async (req, res, next) => {
   }
 });
 
+// 获取单个订单详情
+router.get("/:id", auth, async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("user", "username email")
+      .populate("products.product", "name price image");
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "订单不存在" });
+    }
+
+    // 普通用户只能看自己的订单
+    if (
+      req.user.role !== "admin" &&
+      order.user._id.toString() !== req.user._id.toString()
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, message: "无权查看此订单" });
+    }
+
+    res.json({ success: true, data: order });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// 用户支付订单（模拟支付）
+router.put("/:id/pay", auth, async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "订单不存在" });
+    }
+    if (order.user.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ success: false, message: "无权操作此订单" });
+    }
+    if (order.status !== "pending") {
+      return res
+        .status(400)
+        .json({ success: false, message: "只有待支付的订单才能支付" });
+    }
+
+    order.status = "paid";
+    await order.save();
+    res.json({ success: true, data: order });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// 用户取消订单
+router.put("/:id/cancel", auth, async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "订单不存在" });
+    }
+    if (order.user.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ success: false, message: "无权操作此订单" });
+    }
+    if (order.status !== "pending") {
+      return res
+        .status(400)
+        .json({ success: false, message: "只有待支付的订单才能取消" });
+    }
+
+    order.status = "cancelled";
+    await order.save();
+    res.json({ success: true, data: order });
+  } catch (e) {
+    next(e);
+  }
+});
+
 module.exports = router;
