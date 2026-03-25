@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 const { auth } = require("../middlewares/auth");
 
 // 注册
-router.post("/register", async (req, res,next) => {
+router.post("/register", async (req, res, next) => {
   try {
     const { username, email, password } = req.body;
     // 1,检查用户是否存在
@@ -42,7 +42,7 @@ router.post("/register", async (req, res,next) => {
 });
 
 // 登录
-router.post("/login", async (req, res,next) => {
+router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
     // 1.根据邮箱查找用户
@@ -91,8 +91,27 @@ router.get("/me", auth, async (req, res) => {
       username: req.user.username,
       email: req.user.email,
       role: req.user.role,
+      phone: req.user.phone,
+      address: req.user.address,
     },
   });
+});
+
+// 更新个人信息
+router.put("/profile", auth, async (req, res, next) => {
+  try {
+    const { username, phone, address } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { username, phone, address },
+      {
+        new: true,
+      },
+    ).select("-password");
+    res.json({ success: true, data: user });
+  } catch (e) {
+    next(e);
+  }
 });
 
 module.exports = router;

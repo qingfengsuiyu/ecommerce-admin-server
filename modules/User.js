@@ -21,6 +21,14 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "editor", "viewer"],
       default: "viewer",
     },
+    phone: {
+      type: String,
+      default: "",
+    },
+    address: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
