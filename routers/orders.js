@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const Order = require("../modules/Order");
 const { auth, authorize } = require("../middlewares/auth");
+const sendEmail = require("../utils/email");
+const CardKey = require("../modules/CardKey");
 
 // 创建订单
 router.post("/", auth, async (req, res, next) => {
@@ -67,11 +69,52 @@ router.get("/", auth, async (req, res, next) => {
 router.put("/:id/status", auth, authorize("admin"), async (req, res, next) => {
   try {
     const { status } = req.body;
+    // 更新状态
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true },
     );
+
+    // 如果为发货状态
+    if (status === "shipped") {
+      const orderDetail = await Order.findById(req.params.id).populate(
+        "user",
+        "email",
+      );
+
+      const email = orderDetail.user.email;
+      // 假设只有一个商品
+      const productId = orderDetail.products[0].product;
+
+      // 查找可用卡密
+      const cardKey = await CardKey.findOne({
+        product: productId,
+        isValid: true,
+        $expr: { $lt: ["$currentUsageTime", "$maxUsageTime"] },
+      });
+
+      if (cardKey) {
+        // 使用次数 +1
+        cardKey.currentUsageTime += 1;
+        // 如果用完了，标记为不可用
+        if (cardKey.currentUsageTime >= cardKey.maxUsageTime) {
+          cardKey.isValid = false;
+        }
+        await cardKey.save();
+
+        // 发邮件，把卡密内容发给用户
+        await sendEmail(
+          email,
+          "您的订单已发货",
+          "您购买的商品信息：" + cardKey.content,
+        );
+      } else {
+        // 没有可用卡密
+        await sendEmail(email, "您的订单已发货", "商品正在准备中，请稍候");
+      }
+    }
+
     if (!order) {
       return res.status(404).json({ success: false, message: "订单不存在" });
     }
