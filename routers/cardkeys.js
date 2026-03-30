@@ -24,9 +24,36 @@ router.post("/", auth, authorize("admin"), async (req, res, next) => {
   }
 });
 
+// 退货接口
+router.patch("/:id", auth, async (req, res, next) => {
+  try {
+    const id = req.params.id;
+    const card = await CardKey.findById(id);
+    if (!card) {
+      throw new Error("卡密不存在");
+    }
 
+    if (card.currentUsageTime <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "使用次数已为0，无法退货" });
+    }
 
+    // 使用次数+1
+    card.currentUsageTime -= 1;
 
+    // 判断是否仍然有效
+    if (card.currentUsageTime < card.maxUsageTime) {
+      card.isValid = true;
+    } else {
+      card.isValid = false;
+    }
 
+    await card.save();
+    res.json({ success: true, message: "退货成功" });
+  } catch (e) {
+    next(e);
+  }
+});
 
 module.exports = router;
