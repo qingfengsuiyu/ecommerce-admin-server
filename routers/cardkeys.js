@@ -3,6 +3,7 @@ const router = express.Router();
 const CardKey = require("../modules/CardKey");
 const { auth, authorize } = require("../middlewares/auth");
 
+// 获取所有卡密信息
 router.get("/", auth, authorize("admin"), async (req, res, next) => {
   try {
     const cardKeys = await CardKey.find({})
@@ -14,6 +15,7 @@ router.get("/", auth, authorize("admin"), async (req, res, next) => {
   }
 });
 
+// 添加卡密
 router.post("/", auth, authorize("admin"), async (req, res, next) => {
   try {
     const { product, content, maxUsageTime } = req.body;

@@ -78,41 +78,57 @@ router.put("/:id/status", auth, authorize("admin"), async (req, res, next) => {
 
     // 如果为发货状态
     if (status === "shipped") {
-      const orderDetail = await Order.findById(req.params.id).populate(
-        "user",
-        "email",
-      );
+      const orderDetail = await Order.findById(req.params.id)
+        .populate("user", "email")
+        .populate("products.product", "name");
 
       const email = orderDetail.user.email;
-      // 假设只有一个商品
-      const productId = orderDetail.products[0].product;
 
-      // 查找可用卡密
-      const cardKey = await CardKey.findOne({
-        product: productId,
-        isValid: true,
-        $expr: { $lt: ["$currentUsageTime", "$maxUsageTime"] },
-      });
+      // 一个订单多个商品
+      // 用于存放多个卡密信息,最后统一发送出去
+      const cardKeyContents = [];
+      for (const item of orderDetail.products) {
+        const productId = item.product._id;
+        // 查找这个商品的可用卡密
+        // 找到了 → 使用次数+1，把内容存到 cardKeyContents
+        // 没找到 → 记录"该商品暂无卡密"
+        // 查找可用卡密
+        const cardKey = await CardKey.findOne({
+          product: productId,
+          isValid: true,
+          $expr: { $lt: ["$currentUsageTime", "$maxUsageTime"] },
+        });
 
-      if (cardKey) {
-        // 使用次数 +1
-        cardKey.currentUsageTime += 1;
-        // 如果用完了，标记为不可用
-        if (cardKey.currentUsageTime >= cardKey.maxUsageTime) {
-          cardKey.isValid = false;
+        if (cardKey) {
+          // 使用次数 +1
+          cardKey.currentUsageTime += 1;
+          // 如果用完了，标记为不可用
+          if (cardKey.currentUsageTime >= cardKey.maxUsageTime) {
+            cardKey.isValid = false;
+          }
+          await cardKey.save();
+          cardKeyContents.push({
+            name: item.product.name,
+            content: cardKey.content,
+          });
+        } else {
+          cardKeyContents.push({
+            name: item.product.name,
+            content: "该商品暂无卡密，请联系客服",
+          });
         }
-        await cardKey.save();
-
-        // 发邮件，把卡密内容发给用户
-        await sendEmail(
-          email,
-          "您的订单已发货",
-          "您购买的商品信息：" + cardKey.content,
-        );
-      } else {
-        // 没有可用卡密
-        await sendEmail(email, "您的订单已发货", "商品正在准备中，请稍候");
       }
+
+      const finalContext = cardKeyContents
+        .map((item) => `${item.name}：${item.content}`)
+        .join("\n");
+
+      // 发邮件，把卡密内容发给用户
+      await sendEmail(
+        email,
+        "您的订单已发货",
+        "您购买的商品信息：" + finalContext,
+      );
     }
 
     if (!order) {
